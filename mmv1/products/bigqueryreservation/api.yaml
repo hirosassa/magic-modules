@@ -29,6 +29,70 @@ apis_required:
     url: https://console.cloud.google.com/apis/api/bigqueryreservation.googleapis.com/
 objects:
   - !ruby/object:Api::Resource
+    name: 'CapacityCommitments'
+    base_url: projects/{{project}}/locations/{{location}}/capacityCommitments
+    create_url: projects/{{project}}/locations/{{location}}/capacityCommitments?enforceSingleAdminProjectPerOrg={{isEnforceSingleAdminProjectPerOrg}}&capacityCommitmentsId={{name}}
+    update_verb: :PATCH
+    update_mask: true
+    description: |
+      Capacity commitment is a way to purchase compute capacity for BigQuery jobs (in the form of slots) with some committed period of usage.
+    references: !ruby/object:Api::Resource::ReferenceLinks
+      guides:
+        "Introduction to Reservations": "https://cloud.google.com/bigquery/docs/reservations-intro"
+      api: "https://cloud.google.com/bigquery/docs/reference/reservations/rest/v1beta1/projects.locations.reservations/create"
+    parameters:
+      - !ruby/object:Api::Type::String
+        name: 'location'
+        url_param_only: true
+        input: true
+        default_value: US
+        description: |
+          The geographic location where the transfer config should reside.
+          Examples: US, EU, asia-northeast1. The default value is US.
+    properties:
+      - !ruby/object:Api::Type::Boolean
+        name: 'isEnforceSingleAdminProjectPerOrg'
+        input: true
+        default_value: false
+        description: |
+          If true, fail the request if another project in the organization has a capacity commitment.
+      - !ruby/object:Api::Type::String
+        name: 'capacityCommitmentId'
+        description: |
+          The optional capacity commitment ID. Capacity commitment name will be generated automatically if this field is empty. This field must only contain lower case alphanumeric characters or dash. Max length is 64 characters.
+      - !ruby/object:Api::Type::Integer
+        name: 'slotCount'
+        required: true
+        description: |
+          Number of slots in this commitment.
+      - !ruby/object:Api::Type::Enum
+        name: 'plan'
+        required: true
+        description: |
+          Commitment plan defines the current committed period. Capacity commitment cannot be deleted during it's committed period. The following values are supported:
+          FLEX: Flex commitments have committed period of 1 minute after becoming ACTIVE. After that, they are not in a committed period anymore and can be removed any time.
+          TRIAL: Trial commitments have a committed period of 182 days after becoming ACTIVE. After that, they are converted to a new commitment based on the renewalPlan. Default renewalPlan for Trial commitment is Flex so that it can be deleted right after committed period ends.
+          MONTHLY: Monthly commitments have a committed period of 30 days after becoming ACTIVE. After that, they are not in a committed period anymore and can be removed any time.
+          ANNUAL: Annual commitments have a committed period of 365 days after becoming ACTIVE. After that they are converted to a new commitment based on the renewalPlan.
+        values:
+          - :FLEX
+          - :TRIAL
+          - :MONTHLY
+          - :ANNUAL
+      - !ruby/object:Api::Type::Enum
+        name: 'renewalPlan'
+        description: |
+          The plan this capacity commitment is converted to after commitmentEndTime passes. Once the plan is changed, committed period is extended according to commitment plan. Only applicable for ANNUAL commitments.
+          FLEX: Flex commitments have committed period of 1 minute after becoming ACTIVE. After that, they are not in a committed period anymore and can be removed any time.
+          TRIAL: Trial commitments have a committed period of 182 days after becoming ACTIVE. After that, they are converted to a new commitment based on the renewalPlan. Default renewalPlan for Trial commitment is Flex so that it can be deleted right after committed period ends.
+          MONTHLY: Monthly commitments have a committed period of 30 days after becoming ACTIVE. After that, they are not in a committed period anymore and can be removed any time.
+          ANNUAL: Annual commitments have a committed period of 365 days after becoming ACTIVE. After that they are converted to a new commitment based on the renewalPlan.
+        values:
+          - :FLEX
+          - :TRIAL
+          - :MONTHLY
+          - :ANNUAL
+  - !ruby/object:Api::Resource
     name: 'Reservation'
     base_url: projects/{{project}}/locations/{{location}}/reservations
     create_url: projects/{{project}}/locations/{{location}}/reservations?reservationId={{name}}
@@ -70,3 +134,38 @@ objects:
           If false, any query using this reservation will use idle slots from other reservations within
           the same admin project. If true, a query using this reservation will execute with the slot
           capacity specified above at most.
+  - !ruby/object:Api::Resource
+    name: 'ReservationAssignment'
+    base_url: projects/{{project}}/locations/{{location}}/reservations/{{reservationId}}/assignments
+    create_url: projects/{{project}}/locations/{{location}}/reservations/{{reservationId}}/assignments?assignmentId={{name}}
+    description: |
+      A Assignment allows a project to submit jobs of a certain type using slots from the specified reservation.
+    references: !ruby/object:Api::Resource::ReferenceLinks
+      guides:
+        "Introduction to Reservations": "https://cloud.google.com/bigquery/docs/reservations-intro"
+      api: "https://cloud.google.com/bigquery/docs/reference/reservations/rest/v1beta1/projects.locations.reservations.assignments/create"
+    parameters:
+      - !ruby/object:Api::Type::String
+        name: 'reservation_name'
+        url_param_only: true
+        required: true
+        description: |
+          The parent resource name of the assignment.
+    properties:
+      - !ruby/object:Api::Type::String
+        name: 'assignee'
+        required: true
+        description: |
+          The resource which will use the reservation.
+      - !ruby/object:Api::Type::Enum
+        name: 'jobType'
+        required: true
+        description: |
+          Which type of jobs will use the reservation. The following values are supported:
+          PIPELINE: Pipeline (load/export) jobs from the project will use the reservation.
+          QUERY: Query jobs from the project will use the reservation.
+          ML_EXTERNAL: BigQuery ML jobs that use services external to BigQuery for model training. These jobs will not utilize idle slots from other reservations.
+        values:
+          - :PIPELINE
+          - :QUERY
+          - :ML_EXTERNAL
